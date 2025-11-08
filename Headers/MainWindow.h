@@ -7,11 +7,13 @@
 #include <QMenu>
 #include <QAction>
 #include <QFileDialog>
+#include <QFileInfo>
 #include <QMessageBox>
 #include <QColorDialog>
 #include <QShortcut>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
+#include <QInputDialog>
 #include "ButtonPanel.h"
 #include "Canvas.h"
 #include "Invoker.h"
