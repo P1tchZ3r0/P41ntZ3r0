@@ -21,7 +21,7 @@ void DrawCommand::undo()
 {
 	if (canvas) {
 		canvas->setImage(beforeImage);
-	}
+}
 }
 
 DrawCommand::~DrawCommand()

@@ -1,5 +1,6 @@
 #include "MainWindow.h"
 #include "Command/Commands.h"
+#include <QLineEdit>
 
 MainWindow::MainWindow(QWidget* parent) : QWidget(parent)
 {
@@ -11,11 +12,16 @@ MainWindow::MainWindow(QWidget* parent) : QWidget(parent)
 	
 	// Тулбар сверху горизонтально
 	buttonPanel = new ButtonPanel(this);
+	canvas = new Canvas(this);
+
+	buttonPanel->setBrushSizeValue(canvas->getBrushSize());
+	buttonPanel->setCurrentColor(canvas->getCurrentColor());
+
 	mainLayout->addWidget(buttonPanel);
 	
 	// Canvas занимает оставшееся пространство
-	canvas = new Canvas(this);
 	mainLayout->addWidget(canvas, 1);
+	canvas->setFocus();
 	
 	// Окно масштабируемое
 	this->setMinimumSize(800, 600);
@@ -51,11 +57,16 @@ void MainWindow::connectSignals()
 		QColor color = QColorDialog::getColor(canvas->getCurrentColor(), this, "Выберите цвет");
 		if (color.isValid()) {
 			canvas->setColor(color);
+			buttonPanel->setCurrentColor(color);
 		}
 	});
 	connect(buttonPanel, &ButtonPanel::brushModeSelected, canvas, [this]() {
 		canvas->setDrawingMode(DrawingMode::Brush);
 	});
+	connect(buttonPanel, &ButtonPanel::eraserModeSelected, canvas, [this]() {
+		canvas->setDrawingMode(DrawingMode::Eraser);
+	});
+	connect(buttonPanel, &ButtonPanel::brushSizeChanged, canvas, &Canvas::setBrushSize);
 	connect(buttonPanel, &ButtonPanel::rectangleModeSelected, canvas, [this]() {
 		canvas->setDrawingMode(DrawingMode::Rectangle);
 	});
@@ -65,9 +76,25 @@ void MainWindow::connectSignals()
 	connect(buttonPanel, &ButtonPanel::lineModeSelected, canvas, [this]() {
 		canvas->setDrawingMode(DrawingMode::Line);
 	});
+	connect(buttonPanel, &ButtonPanel::textModeSelected, canvas, [this]() {
+		canvas->setDrawingMode(DrawingMode::Text);
+	});
+connect(buttonPanel, &ButtonPanel::fillModeSelected, canvas, [this]() {
+	canvas->setDrawingMode(DrawingMode::Fill);
+});
 	connect(buttonPanel, &ButtonPanel::clearRequested, this, &MainWindow::onClear);
 	connect(buttonPanel, &ButtonPanel::saveRequested, this, &MainWindow::onSave);
 	connect(buttonPanel, &ButtonPanel::openRequested, this, &MainWindow::onOpen);
+
+	connect(canvas, &Canvas::textEntryRequested, this, [this](const QPoint& imagePos) {
+		bool ok {false};
+		QString text = QInputDialog::getText(this, tr("Вставка текста"), tr("Введите текст:"), QLineEdit::Normal, QString(), &ok);
+		if (ok && !text.trimmed().isEmpty()) {
+			canvas->addText(imagePos, text);
+		} else {
+			canvas->cancelPendingOperation();
+		}
+	});
 }
 
 void MainWindow::onDrawingFinished(const QImage& beforeImage, const QImage& afterImage)
@@ -89,9 +116,17 @@ void MainWindow::onRedo()
 void MainWindow::onSave()
 {
 	QString fileName = QFileDialog::getSaveFileName(this, "Сохранить изображение", 
-		"", "PNG Files (*.png);;JPEG Files (*.jpg);;All Files (*)");
+		"", "PNG Files (*.png);;JPEG Files (*.jpg *.jpeg);;BMP Files (*.bmp);;All Files (*)");
 	if (!fileName.isEmpty()) {
-		if (!canvas->saveImage(fileName)) {
+		QFileInfo fileInfo(fileName);
+		QString suffix = fileInfo.suffix().toLower();
+		if (suffix.isEmpty()) {
+			suffix = "png";
+			fileName += ".png";
+		}
+		
+		QByteArray format = suffix.toUpper().toUtf8();
+		if (!canvas->saveImage(fileName, format)) {
 			QMessageBox::warning(this, "Ошибка", "Не удалось сохранить файл");
 		}
 	}
